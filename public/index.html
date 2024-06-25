@@ -2,12 +2,134 @@
 <html>
 <head>
   <title>File Upload</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+
+    form {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    input[type="file"] {
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      width: 100%;
+    }
+
+    input[type="submit"] {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      width: 100%;
+    }
+
+    input[type="submit"]:hover {
+      background-color: #0056b3;
+    }
+
+    #uploadProgress {
+      margin-top: 20px;
+      color: #007bff;
+      text-align: center;
+    }
+
+    #uploadedSize {
+      color: #333;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    #uploadSpeed {
+      color: #333;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+  </style>
 </head>
 <body>
-  <h1>File Upload</h1>
-  <form action="/upload" method="post" enctype="multipart/form-data">
-    <input type="file" name="file">
-    <input type="submit" value="Upload">
-  </form>
+  <div>
+    <h1>File Upload</h1>
+    <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+      <input type="file" name="file" required>
+      <input type="submit" value="Upload">
+    </form>
+    <div id="uploadProgress"></div>
+    <div id="uploadedSize"></div>
+    <div id="uploadSpeed"></div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    const form = document.getElementById('uploadForm');
+    const progressDiv = document.getElementById('uploadProgress');
+    const uploadedSizeDiv = document.getElementById('uploadedSize');
+    const uploadSpeedDiv = document.getElementById('uploadSpeed');
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(form);
+      const xhr = new XMLHttpRequest();
+      const startTime = new Date().getTime(); // Record the start time
+      let previousLoaded = 0; // Track previously uploaded bytes
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = (e.loaded / e.total) * 100;
+          const megabytesLoaded = (e.loaded / (1024 * 1024)).toFixed(2); // Convert bytes to megabytes
+          progressDiv.innerText = `Upload Progress: ${percentComplete.toFixed(2)}%`;
+          uploadedSizeDiv.innerText = `Uploaded Size: ${megabytesLoaded} MB`;
+
+          // Calculate upload speed
+          const currentTime = new Date().getTime(); // Current time in milliseconds
+          const elapsedTime = (currentTime - startTime) / 1000; // Elapsed time in seconds
+          const bytesPerSecond = (e.loaded - previousLoaded) / elapsedTime; // Bytes per second
+          const kilobytesPerSecond = (bytesPerSecond / 1024).toFixed(2); // Convert to KBps
+          const megabytesPerSecond = (kilobytesPerSecond / 1024).toFixed(2); // Convert to MBps
+
+          uploadSpeedDiv.innerText = `Upload Speed: ${megabytesPerSecond} MB/s (${kilobytesPerSecond} KB/s)`;
+
+          previousLoaded = e.loaded; // Update previousLoaded for next calculation
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        progressDiv.innerText = 'File uploaded successfully.';
+        uploadedSizeDiv.innerText = '';
+        uploadSpeedDiv.innerText = '';
+      });
+
+      xhr.open('POST', '/upload');
+      xhr.send(formData);
+    });
+  </script>
 </body>
 </html>
